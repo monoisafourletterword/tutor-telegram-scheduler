@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
+# backend/app/models.py
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from .database import Base
+from .database import Base  # ✅ Относительный импорт!
 
 class Student(Base):
     __tablename__ = "students"
@@ -20,10 +21,10 @@ class Lesson(Base):
     __tablename__ = "lessons"
     
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)  # ✅ ForeignKey!
     subject = Column(String(100))
     lesson_datetime = Column(DateTime, nullable=False)
-    platform = Column(String(50))  # "Yandex", "Zoom", etc.
+    platform = Column(String(50))
     meeting_link = Column(Text)
     reminder_sent = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
