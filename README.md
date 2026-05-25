@@ -1,4 +1,3 @@
-[Qwen__20260525_1zbj92bpx.txt](https://github.com/user-attachments/files/28226908/Qwen__20260525_1zbj92bpx.txt)
 # Tutor Telegram Scheduler
 
 Система автоматических напоминаний об уроках для репетиторов.
