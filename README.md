@@ -1,2 +1,19 @@
-# tutor-telegram-scheduler
-Система уведомлений для репетиторов в Telegram
+# Tutor Telegram Scheduler
+
+Система автоматических напоминаний об уроках для репетиторов.
+
+## Технологии
+
+- **Backend**: FastAPI + SQLAlchemy
+- **Frontend**: Streamlit
+- **Database**: SQLite
+- **Scheduler**: APScheduler
+- **Telegram**: python-telegram-bot (MOCK_MODE для демо)
+
+## Установка
+
+### Backend
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
