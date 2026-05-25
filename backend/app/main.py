@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from . import models
 from . import schemas
-from . database import engine, get_db
+from .database import engine, get_db
 
 # Создаём таблицы
 models.Base.metadata.create_all(bind=engine)
