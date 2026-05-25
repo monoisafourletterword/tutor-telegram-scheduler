@@ -18,22 +18,5 @@ cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
-
-## Архитектура
-
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Streamlit  │────▶│   FastAPI   │────▶│   SQLite    │
-│  Frontend   │◀────│   Backend   │◀────│   Database  │
-└─────────────┘     └─────────────┘     └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   APSched   │
-                    │  Scheduler  │
-                    └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   Telegram  │
                     │  Bot (Mock) │
                     └─────────────┘
