@@ -38,6 +38,29 @@ if choice == "👥 Студенты":
                 
                 st.dataframe(df, use_container_width=True)
                 
+                # Кнопка переключения активности
+                st.subheader("️ Управление активностью")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    selected_student_id = st.selectbox(
+                        "Выберите студента", 
+                        [s['id'] for s in students],
+                        format_func=lambda x: next(s['name'] for s in students if s['id'] == x)
+                    )
+                with col2:
+                    if st.button("Переключить активность", type="secondary"):
+                        try:
+                            resp = requests.patch(f"{API_URL}/students/{selected_student_id}/toggle-active")
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                icon = "✅" if data['is_active'] else "❌"
+                                st.success(f"{icon} {data['message']}")
+                                st.rerun()  # Перезагрузить страницу для обновления таблицы
+                            else:
+                                st.error(f"Ошибка: {resp.status_code}")
+                        except Exception as e:
+                            st.error(f"Ошибка подключения: {e}")
+                
                 # Статистика
                 col1, col2 = st.columns(2)
                 with col1:
@@ -45,6 +68,7 @@ if choice == "👥 Студенты":
                 with col2:
                     active = sum(1 for s in students if s['is_active'])
                     st.metric("Активных", active)
+                    
             else:
                 st.info("Нет студентов. Добавьте первого!")
         else:

@@ -1,8 +1,9 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 import logging
 import asyncio
+
 
 from . import models
 
@@ -15,26 +16,47 @@ class LessonScheduler:
         self.db_session = db_session
         
     def add_lesson_reminder(self, lesson: models.Lesson, student: models.Student):
-        """Добавление напоминания для урока"""
-        reminder_time = lesson.lesson_datetime - timedelta(minutes=30)
-        now = datetime.utcnow()
+        # Явно указываем UTC+5 (Тюмень)
+        TYUMEN_TZ = timezone(timedelta(hours=5))
         
-        # Если время напоминания уже прошло — отправляем сразу
-        if reminder_time <= now:
-            logger.warning(f"️ Время напоминания для урока {lesson.id} уже прошло, отправляем сразу")
-            asyncio.run(self._send_reminder_sync(lesson.id, student.telegram_id))
+        # Преобразуем время урока в "наивное" datetime для сравнения
+        lesson_time_naive = lesson.lesson_datetime.replace(tzinfo=None)
+        
+        # Рассчитываем время напоминания
+        reminder_time = lesson_time_naive - timedelta(minutes=30)
+        
+        # Получаем текущее время в UTC (так работает APScheduler по умолчанию)
+        now_utc = datetime.utcnow()
+        
+        # Конвертируем время напоминания из Тюмени в UTC для сравнения
+        # Предполагаем, что lesson.lesson_datetime хранится как "наивное" время по Тюмени
+        reminder_time_utc = reminder_time - timedelta(hours=5)
+        
+        if reminder_time_utc <= now_utc:
+            logger.warning(f"⚠️ Время напоминания для урока {lesson.id} уже прошло ({reminder_time_utc}), отправляем сразу")
+            # Используем asyncio.run только если мы НЕ в async контексте
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Если уже в event loop, создаем задачу
+                    asyncio.create_task(self._send_reminder_sync(lesson.id, student.telegram_id))
+                else:
+                    asyncio.run(self._send_reminder_sync(lesson.id, student.telegram_id))
+            except RuntimeError:
+                asyncio.run(self._send_reminder_sync(lesson.id, student.telegram_id))
             return None
-        
+
         job = self.scheduler.add_job(
             self._send_reminder,
             'date',
-            run_date=reminder_time,
+            run_date=reminder_time_utc,  # ✅ Передаем время в UTC!
             args=[lesson.id, student.telegram_id],
             id=f"lesson_{lesson.id}",
             replace_existing=True
         )
         
-        logger.info(f"⏰ Напоминание для урока {lesson.id} запланировано на {reminder_time}")
+        logger.info(f"⏰ Напоминание для урока {lesson.id} запланировано на {reminder_time_utc} (UTC)")
         return job
     
     async def _send_reminder_sync(self, lesson_id: int, telegram_id: str):

@@ -6,3 +6,4 @@ pydantic>=2.7.0
 python-telegram-bot>=21.0
 apscheduler>=3.10.4
 python-dotenv>=1.0.0
+pyrogram==2.0.106  

@@ -112,6 +112,29 @@ async def schedule_reminder(lesson_id: int, db: Session = Depends(get_db)):
     
     return {"status": "scheduled", "lesson_id": lesson_id}
 
+@app.post("/test/send-message")
+async def test_send_message():
+    """Тестовая отправка сообщения тебе"""
+    if not telegram_bot:
+        raise HTTPException(status_code=500, detail="Telegram bot not initialized")
+    
+    # Твой chat_id
+    YOUR_CHAT_ID = "432656094"
+    
+    test_info = {
+        'subject': 'Привет! Жду тебя в синагоге на уроке по Торе!',
+        'datetime': datetime.utcnow(),
+        'platform': 'Test Platform',
+        'link': 'https://test.com'
+    }
+    
+    success = await telegram_bot.send_lesson_reminder(YOUR_CHAT_ID, test_info)
+    
+    if success:
+        return {"status": "success", "message": "Сообщение отправлено!"}
+    else:
+        raise HTTPException(status_code=500, detail="Не удалось отправить сообщение")
+
 # === Health check ===
 @app.get("/")
 def read_root():
@@ -120,3 +143,17 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
+
+@app.patch("/students/{student_id}/toggle-active")
+def toggle_student_active(student_id: int, db: Session = Depends(get_db)):
+    """Переключить статус активности студента"""
+    student = db.query(models.Student).filter(models.Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    student.is_active = not student.is_active
+    db.commit()
+    db.refresh(student)
+    
+    status = "активен" if student.is_active else "неактивен"
+    return {"id": student.id, "name": student.name, "is_active": student.is_active, "message": f"Студент теперь {status}"}

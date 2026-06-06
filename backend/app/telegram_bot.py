@@ -16,7 +16,6 @@ class TelegramBot:
         self.mock_mode = os.getenv("MOCK_MODE", "false").lower() == "true"
         
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Обработчик команды /start"""
         await update.message.reply_text(
             f"👋 Привет, {update.effective_user.first_name}!\n\n"
             "Я бот для напоминаний об уроках.\n"
@@ -24,7 +23,6 @@ class TelegramBot:
         )
     
     async def send_lesson_reminder(self, chat_id: str, lesson_info: dict):
-        """Отправка напоминания об уроке"""
         message = (
             f"📚 *Напоминание об уроке*\n\n"
             f" Предмет: {lesson_info.get('subject', 'Не указан')}\n"
@@ -35,31 +33,29 @@ class TelegramBot:
         )
         
         if self.mock_mode:
-            logger.info(f"🧪 [MOCK MODE] Сообщение:\n{message}")
+            logger.info(f"🧪 [MOCK MODE] Сообщение для {chat_id}:\n{message}")
             return True
         
         try:
             await self.app.bot.send_message(
-                chat_id=chat_id,
-                text=message,
-                parse_mode='Markdown'
+                chat_id=chat_id, text=message, parse_mode='Markdown'
             )
             logger.info(f"✅ Напоминание отправлено пользователю {chat_id}")
             return True
         except Exception as e:
-            logger.error(f"❌ Ошибка отправки: {e}")
+            logger.error(f"❌ Ошибка отправки {chat_id}: {e}")
             return False
     
     def run_polling(self):
-        """Запуск бота"""
         if self.mock_mode:
             logger.info("🧪 [MOCK MODE] Демо-режим")
             return
+            
+        self.app = Application.builder().token(self.token).build()
+        self.app.add_handler(CommandHandler("start", self.start_command))
+        logger.info("🤖 Telegram бот запущен...")
         
         try:
-            self.app = Application.builder().token(self.token).build()
-            self.app.add_handler(CommandHandler("start", self.start_command))
-            logger.info("🤖 Telegram бот запущен...")
             self.app.run_polling(allowed_updates=Update.ALL_TYPES)
         except Exception as e:
-            logger.error(f"❌ Ошибка запуска бота: {e}")
+            logger.error(f"❌ Ошибка запуска: {e}")
