@@ -3,27 +3,23 @@ import requests
 from datetime import datetime, timedelta
 import pandas as pd
 
-# Настройки страницы
 st.set_page_config(
-    page_title="Tutor Scheduler",
-    page_icon="📚",
+    page_title="Бот-секретарь для репетитора Никиты",
     layout="wide"
 )
 
-# Backend URL
 API_URL = "http://127.0.0.1:8000"
 
-# Заголовок
-st.title("📚 Tutor Telegram Scheduler")
+st.title("Бот-секретарь для репетитора Никиты")
 st.markdown("Система управления уроками и напоминаниями")
 
-# Боковое меню
-menu = ["📋 Уроки", "👥 Студенты", "➕ Добавить урок", "➕ Добавить студента"]
+# меню
+menu = ["Уроки", "Студенты", "+ Добавить урок", "+ Добавить студента"]
 choice = st.sidebar.selectbox("Меню", menu)
 
-# === СТУДЕНТЫ ===
-if choice == "👥 Студенты":
-    st.header("👥 Список студентов")
+# ученики
+if choice == "Студенты":
+    st.header("Список студентов")
     
     try:
         response = requests.get(f"{API_URL}/students/")
@@ -31,14 +27,12 @@ if choice == "👥 Студенты":
             students = response.json()
             
             if students:
-                # Создаём DataFrame
                 df = pd.DataFrame(students)
                 df = df[['id', 'name', 'telegram_id', 'phone', 'is_active', 'created_at']]
                 df.columns = ['ID', 'Имя', 'Telegram ID', 'Телефон', 'Активен', 'Создан']
                 
                 st.dataframe(df, use_container_width=True)
                 
-                # Кнопка переключения активности
                 st.subheader("️ Управление активностью")
                 col1, col2 = st.columns([3, 1])
                 with col1:
@@ -53,15 +47,57 @@ if choice == "👥 Студенты":
                             resp = requests.patch(f"{API_URL}/students/{selected_student_id}/toggle-active")
                             if resp.status_code == 200:
                                 data = resp.json()
-                                icon = "✅" if data['is_active'] else "❌"
+                                icon = "Активен" if data['is_active'] else "Неактивен"
                                 st.success(f"{icon} {data['message']}")
-                                st.rerun()  # Перезагрузить страницу для обновления таблицы
+                                st.rerun() 
                             else:
                                 st.error(f"Ошибка: {resp.status_code}")
                         except Exception as e:
                             st.error(f"Ошибка подключения: {e}")
+                            
+                st.divider()
+                st.subheader("Удаление студента")
+                st.warning("️ При удалении студента будут также удалены ВСЕ его уроки и отменены напоминания!")
                 
-                # Статистика
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    student_to_delete = st.selectbox(
+                        "Выберите студента для удаления",
+                        options=[s['id'] for s in students],
+                        format_func=lambda x: next(s['name'] for s in students if s['id'] == x),
+                        key="delete_student_select"
+                    )
+                
+                with col2:
+                    confirm_key = f"confirm_del_student_{student_to_delete}"
+                    if confirm_key not in st.session_state:
+                        st.session_state[confirm_key] = False
+                    
+                    if not st.session_state[confirm_key]:
+                        if st.button("Удалить студента", type="secondary", key=f"btn_del_stu_{student_to_delete}"):
+                            st.session_state[confirm_key] = True
+                            st.rerun()
+                    else:
+                        if st.button("️ Подтвердить удаление", type="primary", key=f"btn_conf_stu_{student_to_delete}"):
+                            try:
+                                resp = requests.delete(f"{API_URL}/students/{student_to_delete}")
+                                if resp.status_code == 200:
+                                    data = resp.json()
+                                    st.success(f"✅ {data['message']}")
+                                    st.session_state[confirm_key] = False
+                                    st.rerun()
+                                else:
+                                    st.error(f"Ошибка: {resp.status_code}")
+                                    st.session_state[confirm_key] = False
+                            except Exception as e:
+                                st.error(f"Ошибка подключения: {e}")
+                                st.session_state[confirm_key] = False
+                        
+                        if st.button("Отмена", key=f"btn_cancel_stu_{student_to_delete}"):
+                            st.session_state[confirm_key] = False
+                            st.rerun()
+                
+                # для стат
                 col1, col2 = st.columns(2)
                 with col1:
                     st.metric("Всего студентов", len(students))
@@ -74,11 +110,11 @@ if choice == "👥 Студенты":
         else:
             st.error(f"Ошибка: {response.status_code}")
     except requests.exceptions.ConnectionError:
-        st.error("❌ Не удалось подключиться к backend. Убедитесь, что FastAPI запущен на http://127.0.0.1:8000")
+        st.error("Не удалось подключиться к backend. Убедитесь, что FastAPI запущен на http://127.0.0.1:8000")
 
-# === УРОКИ ===
-elif choice == "📋 Уроки":
-    st.header("📋 Расписание уроков")
+# уроки
+elif choice == "Уроки":
+    st.header("Расписание уроков")
     
     try:
         response = requests.get(f"{API_URL}/lessons/")
@@ -86,11 +122,9 @@ elif choice == "📋 Уроки":
             lessons = response.json()
             
             if lessons:
-                # Получаем имена студентов
                 students_response = requests.get(f"{API_URL}/students/")
                 students = {s['id']: s['name'] for s in students_response.json()} if students_response.status_code == 200 else {}
                 
-                # Форматируем уроки
                 lessons_data = []
                 for lesson in lessons:
                     lessons_data.append({
@@ -99,16 +133,15 @@ elif choice == "📋 Уроки":
                         'Предмет': lesson['subject'] or 'Не указан',
                         'Дата и время': lesson['lesson_datetime'],
                         'Платформа': lesson['platform'] or 'Не указана',
-                        'Напоминание': '✅' if lesson['reminder_sent'] else '⏳',
+                        'Напоминание': 'Успешно' if lesson['reminder_sent'] else 'Ждёт отправки',
                         'Ссылка': lesson['meeting_link'][:30] + '...' if lesson['meeting_link'] else 'Нет'
                     })
                 
                 df = pd.DataFrame(lessons_data)
                 st.dataframe(df, use_container_width=True)
                 
-                # === УПРАВЛЕНИЕ УРОКАМИ ===
                 st.divider()
-                st.subheader("🗑 Управление уроками")
+                st.subheader("Управление уроками")
                 
                 col1, col2 = st.columns([3, 1])
                 with col1:
@@ -123,7 +156,6 @@ elif choice == "📋 Уроки":
                     )
                 
                 with col2:
-                    # ⚠️ Защита от случайного удаления: двойное подтверждение
                     confirm_key = f"confirm_{lesson_to_delete}"
                     if confirm_key not in st.session_state:
                         st.session_state[confirm_key] = False
@@ -137,7 +169,7 @@ elif choice == "📋 Уроки":
                             try:
                                 resp = requests.delete(f"{API_URL}/lessons/{lesson_to_delete}")
                                 if resp.status_code == 200:
-                                    st.success("✅ Урок удален!")
+                                    st.success("Урок удален!")
                                     st.session_state[confirm_key] = False
                                     st.rerun()
                                 else:
@@ -151,8 +183,7 @@ elif choice == "📋 Уроки":
                             st.session_state[confirm_key] = False
                             st.rerun()
                 
-                # Кнопка для отправки напоминания
-                st.subheader("🔔 Отправить напоминание")
+                st.subheader("Отправить напоминание об уроке")
                 lesson_ids = [l['id'] for l in lessons]
                 selected_lesson = st.selectbox("Выберите урок", lesson_ids)
                 
@@ -160,7 +191,7 @@ elif choice == "📋 Уроки":
                     try:
                         resp = requests.post(f"{API_URL}/lessons/{selected_lesson}/schedule-reminder")
                         if resp.status_code == 200:
-                            st.success("✅ Напоминание запланировано!")
+                            st.success("Напоминание запланировано!")
                         else:
                             st.error(f"Ошибка: {resp.status_code}")
                     except Exception as e:
@@ -170,11 +201,11 @@ elif choice == "📋 Уроки":
         else:
             st.error(f"Ошибка: {response.status_code}")
     except requests.exceptions.ConnectionError:
-        st.error("❌ Не удалось подключиться к backend")
+        st.error("Не удалось подключиться к backend")
 
-# === ДОБАВИТЬ СТУДЕНТА ===
-elif choice == "➕ Добавить студента":
-    st.header("➕ Новый студент")
+# ученик
+elif choice == "+ Добавить студента":
+    st.header("+ Новый студент")
     
     with st.form("add_student_form"):
         name = st.text_input("Имя студента *", placeholder="Иван Петров")
@@ -186,7 +217,7 @@ elif choice == "➕ Добавить студента":
         
         if submitted:
             if not name or not telegram_id:
-                st.error("❌ Имя и Telegram ID обязательны!")
+                st.error("Имя и Telegram ID обязательны!")
             else:
                 try:
                     data = {
@@ -197,34 +228,34 @@ elif choice == "➕ Добавить студента":
                     response = requests.post(f"{API_URL}/students/", json=data)
                     
                     if response.status_code == 200:
-                        st.success(f"✅ Студент '{name}' успешно добавлен!")
+                        st.success(f"Студент '{name}' успешно добавлен!")
                         st.balloons()
                     else:
                         st.error(f"Ошибка: {response.status_code} - {response.text}")
                 except requests.exceptions.ConnectionError:
-                    st.error("❌ Не удалось подключиться к backend")
+                    st.error("Не удалось подключиться к backend")
                 except Exception as e:
                     st.error(f"Ошибка: {e}")
 
-# === ДОБАВИТЬ УРОК ===
-elif choice == "➕ Добавить урок":
-    st.header("➕ Новый урок")
-    
-    # Получаем список студентов
+# урок
+elif choice == "+ Добавить урок":
+    st.header(" Новый урок")
     try:
         students_response = requests.get(f"{API_URL}/students/")
         if students_response.status_code == 200:
-            students = students_response.json()
-            student_options = {f"{s['name']} (ID: {s['id']})": s['id'] for s in students}
+            students_list = students_response.json()
+            student_options = {f"{s['name']} (ID: {s['id']})": s['id'] for s in students_list}
             
             if not student_options:
-                st.warning("⚠️ Сначала добавьте студентов!")
+                st.warning("Сначала добавьте студентов!")
                 student_options = {"Нет студентов": None}
         else:
             student_options = {"Ошибка загрузки": None}
     except:
         student_options = {"Не удалось загрузить": None}
-    
+
+    created_lesson_id = None
+
     with st.form("add_lesson_form"):
         col1, col2 = st.columns(2)
         
@@ -242,10 +273,9 @@ elif choice == "➕ Добавить урок":
         
         if submitted:
             if student_options[selected_student] is None:
-                st.error("❌ Выберите студента!")
+                st.error("Выберите студента!")
             else:
                 try:
-                    # Объединяем дату и время
                     lesson_datetime = datetime.combine(lesson_date, lesson_time).isoformat()
                     
                     data = {
@@ -259,28 +289,40 @@ elif choice == "➕ Добавить урок":
                     response = requests.post(f"{API_URL}/lessons/", json=data)
                     
                     if response.status_code == 200:
-                        st.success("✅ Урок успешно добавлен!")
+                        st.success("Урок успешно добавлен!")
                         st.balloons()
                         
-                        # Предлагаем запланировать напоминание
-                        lesson_id = response.json()['id']
-                        st.info(f"💡 ID урока: {lesson_id}")
-                        
-                        if st.button("🔔 Запланировать напоминание"):
-                            resp = requests.post(f"{API_URL}/lessons/{lesson_id}/schedule-reminder")
-                            if resp.status_code == 200:
-                                st.success("Напоминание запланировано!")
+                        created_lesson_id = response.json()['id']
+                        st.session_state['last_created_lesson_id'] = created_lesson_id
+                        st.info(f"ID урока: {created_lesson_id}")
                     else:
                         st.error(f"Ошибка: {response.status_code} - {response.text}")
                         
                 except Exception as e:
                     st.error(f"Ошибка: {e}")
 
-# Футер
+    if 'last_created_lesson_id' in st.session_state and st.session_state['last_created_lesson_id']:
+        st.divider()
+        st.subheader(" Следующий шаг")
+        
+        if st.button("Запланировать напоминание для последнего урока", type="primary"):
+            try:
+                lid = st.session_state['last_created_lesson_id']
+                resp = requests.post(f"{API_URL}/lessons/{lid}/schedule-reminder")
+                if resp.status_code == 200:
+                    st.success("Напоминание запланировано!")
+                    del st.session_state['last_created_lesson_id']
+                    st.rerun()
+                else:
+                    st.error(f"Ошибка: {resp.status_code}")
+            except Exception as e:
+                st.error(f"Ошибка подключения: {e}")
+
+# мой футер
 st.sidebar.markdown("---")
-st.sidebar.markdown("### ℹ️ О системе")
+st.sidebar.markdown("### О системе")
 st.sidebar.info("""
-**Tutor Telegram Scheduler v1.0**
+**Бот-секретарь v1.0**
 
 Автоматическая отправка напоминаний об уроках через Telegram.
 
@@ -291,8 +333,7 @@ st.sidebar.info("""
 - Планировщик: APScheduler
 """)
 
-# Автообновление каждые 60 секунд
-if st.checkbox("🔄 Автообновление (60 сек)", value=False):
+if st.checkbox("Автообновление (60 сек)", value=False):
     import time
     time.sleep(60)
     st.rerun()

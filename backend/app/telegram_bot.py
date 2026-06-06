@@ -42,8 +42,6 @@ class TelegramBot:
         """Показать ближайшее расписание"""
         chat_id = str(update.effective_user.id)
         
-        # ⚠️ В реальном проекте здесь был бы запрос к БД через API
-        # Для демо показываем заглушку или последнее запланированное
         from .database import SessionLocal
         from . import models
         from datetime import datetime
@@ -60,7 +58,6 @@ class TelegramBot:
                 )
                 return
             
-            # Ищем будущие уроки
             now = datetime.utcnow()
             upcoming_lessons = db.query(models.Lesson).filter(
                 models.Lesson.student_id == student.id,
@@ -128,8 +125,6 @@ class TelegramBot:
             return
             
         self.app = Application.builder().token(self.token).build()
-        
-        # ✅ Регистрируем ВСЕ команды
         self.app.add_handler(CommandHandler("start", self.start_command))
         self.app.add_handler(CommandHandler("help", self.help_command))
         self.app.add_handler(CommandHandler("schedule", self.schedule_command))
