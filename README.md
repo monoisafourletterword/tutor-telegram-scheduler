@@ -1,4 +1,4 @@
-# Tutor Telegram Scheduler
+# Бот-секретарь для Никиты-репетитора
 
 Система автоматических напоминаний об уроках для репетиторов.
 
@@ -9,14 +9,3 @@
 - **Database**: SQLite
 - **Scheduler**: APScheduler
 - **Telegram**: python-telegram-bot (MOCK_MODE для демо)
-
-## Установка
-
-### Backend
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-                    │  Bot (Mock) │
-                    └─────────────┘
