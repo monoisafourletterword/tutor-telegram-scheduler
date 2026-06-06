@@ -119,10 +119,10 @@ async def test_send_message():
         raise HTTPException(status_code=500, detail="Telegram bot not initialized")
     
     # Твой chat_id
-    YOUR_CHAT_ID = "432656094"
+    YOUR_CHAT_ID = "630099003"
     
     test_info = {
-        'subject': 'Привет! Жду тебя в синагоге на уроке по Торе!',
+        'subject': 'Тестовый урок',
         'datetime': datetime.utcnow(),
         'platform': 'Test Platform',
         'link': 'https://test.com'
