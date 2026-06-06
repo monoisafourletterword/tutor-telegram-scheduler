@@ -112,6 +112,23 @@ async def schedule_reminder(lesson_id: int, db: Session = Depends(get_db)):
     
     return {"status": "scheduled", "lesson_id": lesson_id}
 
+@app.delete("/lessons/{lesson_id}")
+def delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
+    """Удалить урок по ID"""
+    lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Урок не найден")
+    
+    # Опционально: отменить запланированное напоминание, если оно есть
+    if scheduler and f"lesson_{lesson_id}" in [job.id for job in scheduler.scheduler.get_jobs()]:
+        scheduler.scheduler.remove_job(f"lesson_{lesson_id}")
+        logger.info(f"🗑 Отменено напоминание для удаленного урока {lesson_id}")
+    
+    db.delete(lesson)
+    db.commit()
+    
+    return {"status": "deleted", "lesson_id": lesson_id, "message": "Урок успешно удален"}
+
 @app.post("/test/send-message")
 async def test_send_message():
     """Тестовая отправка сообщения тебе"""

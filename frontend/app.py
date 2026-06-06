@@ -106,6 +106,51 @@ elif choice == "📋 Уроки":
                 df = pd.DataFrame(lessons_data)
                 st.dataframe(df, use_container_width=True)
                 
+                # === УПРАВЛЕНИЕ УРОКАМИ ===
+                st.divider()
+                st.subheader("🗑 Управление уроками")
+                
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    lesson_to_delete = st.selectbox(
+                        "Выберите урок для удаления",
+                        options=[l['id'] for l in lessons],
+                        format_func=lambda x: next(
+                            f"{l['subject']} ({l['lesson_datetime']}) - {students.get(l['student_id'], '?')}" 
+                            for l in lessons if l['id'] == x
+                        ),
+                        key="delete_select"
+                    )
+                
+                with col2:
+                    # ⚠️ Защита от случайного удаления: двойное подтверждение
+                    confirm_key = f"confirm_{lesson_to_delete}"
+                    if confirm_key not in st.session_state:
+                        st.session_state[confirm_key] = False
+                    
+                    if not st.session_state[confirm_key]:
+                        if st.button("Удалить урок", type="secondary", key=f"btn_del_{lesson_to_delete}"):
+                            st.session_state[confirm_key] = True
+                            st.rerun()
+                    else:
+                        if st.button("️ Подтвердить удаление", type="primary", key=f"btn_conf_{lesson_to_delete}"):
+                            try:
+                                resp = requests.delete(f"{API_URL}/lessons/{lesson_to_delete}")
+                                if resp.status_code == 200:
+                                    st.success("✅ Урок удален!")
+                                    st.session_state[confirm_key] = False
+                                    st.rerun()
+                                else:
+                                    st.error(f"Ошибка: {resp.status_code}")
+                                    st.session_state[confirm_key] = False
+                            except Exception as e:
+                                st.error(f"Ошибка подключения: {e}")
+                                st.session_state[confirm_key] = False
+                        
+                        if st.button("Отмена", key=f"btn_cancel_{lesson_to_delete}"):
+                            st.session_state[confirm_key] = False
+                            st.rerun()
+                
                 # Кнопка для отправки напоминания
                 st.subheader("🔔 Отправить напоминание")
                 lesson_ids = [l['id'] for l in lessons]
